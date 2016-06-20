@@ -1,4 +1,4 @@
-Packer template to create an AMI used by all web nodes.
+Packer template to create an OpenVPN AMI
 =============
 
 ###Provisioning
