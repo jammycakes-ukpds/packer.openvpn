@@ -44,9 +44,13 @@ else
 	exit 5
 fi
 
-VPNSUBNET='10.1.6.0 255.255.255.0'
-VPNSUBNETSIMPLE="10.1.6.0/24"	# TODO: calculate if form VPNSUBNET
-VPNSUBNETSUBNETESCAPE=${VPNSUBNETSIMPLE/\//\\/}
+# Define the VPN network here:
+. ./msk2cdr.sh
+VPNNETSTART='10.1.6.0'
+VPNNETMASK='255.255.255.0'
+VPNNET="$VPNNETSTART $VPNNETMASK"
+VPNNETCIDR="$VPNNETSTART/$(mask2cdr $VPNNETMASK)"
+VPNNETCIDRESCAPED=${VPNNETCIDR/\//\\/}
 
 newclient () {
 	# Generates the custom client.ovpn
@@ -139,16 +143,16 @@ if [[ -e /etc/openvpn/server.conf ]]; then
 				if pgrep firewalld; then
 					# Using both permanent and not permanent rules to avoid a firewalld reload.
 					firewall-cmd --zone=public --remove-port=$PORT/udp
-					firewall-cmd --zone=trusted --remove-source=$VPNSUBNETSIMPLE
+					firewall-cmd --zone=trusted --remove-source=$VPNNETCIDR
 					firewall-cmd --permanent --zone=public --remove-port=$PORT/udp
-					firewall-cmd --permanent --zone=trusted --remove-source=$VPNSUBNETSIMPLE
+					firewall-cmd --permanent --zone=trusted --remove-source=$VPNNETCIDR
 				fi
 				if iptables -L | grep -qE 'REJECT|DROP'; then
 					sed -i "/iptables -I INPUT -p udp --dport $PORT -j ACCEPT/d" $RCLOCAL
-					sed -i "/iptables -I FORWARD -s $VPNSUBNETSIMPLEESCAPE -j ACCEPT/d" $RCLOCAL
+					sed -i "/iptables -I FORWARD -s $VPNNETCIDRESCAPE -j ACCEPT/d" $RCLOCAL
 					sed -i "/iptables -I FORWARD -m state --state RELATED,ESTABLISHED -j ACCEPT/d" $RCLOCAL
 				fi
-				sed -i '/iptables -t nat -A POSTROUTING -s $VPNSUBNETSIMPLEESCAPE -j SNAT --to /d' $RCLOCAL
+				sed -i '/iptables -t nat -A POSTROUTING -s $VPNNETCIDRESCAPE -j SNAT --to /d' $RCLOCAL
 				if hash sestatus 2>/dev/null; then
 					if sestatus | grep "Current mode" | grep -qs "enforcing"; then
 						if [[ "$PORT" != '1194' ]]; then
@@ -276,7 +280,7 @@ tls-auth ta.key 0
 topology subnet
 ifconfig-pool-persist ipp.txt
 push 'redirect-gateway def1 bypass-dhcp'" > /etc/openvpn/server.conf
-	echo $"server $VPNSUBNET" >> /etc/openvpn/server.conf
+	echo $"server $VPNNET" >> /etc/openvpn/server.conf
 	# DNS
 	case $DNS in
 		1) 
@@ -329,26 +333,26 @@ crl-verify crl.pem" >> /etc/openvpn/server.conf
 	# Avoid an unneeded reboot
 	echo 1 > /proc/sys/net/ipv4/ip_forward
 	# Set NAT for the VPN subnet
-	iptables -t nat -A POSTROUTING -s $VPNSUBNETSIMPLE -j SNAT --to $IP
-	sed -i "1 a\iptables -t nat -A POSTROUTING -s $VPNSUBNETSIMPLE -j SNAT --to $IP" $RCLOCAL
+	iptables -t nat -A POSTROUTING -s $VPNNETCIDR -j SNAT --to $IP
+	sed -i "1 a\iptables -t nat -A POSTROUTING -s $VPNNETCIDR -j SNAT --to $IP" $RCLOCAL
 	if pgrep firewalld; then
 		# We don't use --add-service=openvpn because that would only work with
 		# the default port. Using both permanent and not permanent rules to
 		# avoid a firewalld reload.
 		firewall-cmd --zone=public --add-port=$PORT/udp
-		firewall-cmd --zone=trusted --add-source=$VPNSUBNETSIMPLE
+		firewall-cmd --zone=trusted --add-source=$VPNNETCIDR
 		firewall-cmd --permanent --zone=public --add-port=$PORT/udp
-		firewall-cmd --permanent --zone=trusted --add-source=$VPNSUBNETSIMPLE
+		firewall-cmd --permanent --zone=trusted --add-source=$VPNNETCIDR
 	fi
 	if iptables -L | grep -qE 'REJECT|DROP'; then
 		# If iptables has at least one REJECT rule, we asume this is needed.
 		# Not the best approach but I can't think of other and this shouldn't
 		# cause problems.
 		iptables -I INPUT -p udp --dport $PORT -j ACCEPT
-		iptables -I FORWARD -s $VPNSUBNETSIMPLE -j ACCEPT
+		iptables -I FORWARD -s $VPNNETCIDR -j ACCEPT
 		iptables -I FORWARD -m state --state RELATED,ESTABLISHED -j ACCEPT
 		sed -i "1 a\iptables -I INPUT -p udp --dport $PORT -j ACCEPT" $RCLOCAL
-		sed -i "1 a\iptables -I FORWARD -s $VPNSUBNETSIMPLE -j ACCEPT" $RCLOCAL
+		sed -i "1 a\iptables -I FORWARD -s $VPNNETCIDR -j ACCEPT" $RCLOCAL
 		sed -i "1 a\iptables -I FORWARD -m state --state RELATED,ESTABLISHED -j ACCEPT" $RCLOCAL
 	fi
 	# If SELinux is enabled and a custom port was selected, we need this
