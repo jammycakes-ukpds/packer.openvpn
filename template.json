@@ -3,7 +3,7 @@
     "aws_access_key": "",
     "aws_secret_key": "",
     "region": "eu-west-1",
-    "source_ami": "ami-8ac04ff9",
+    "source_ami": "ami-6f587e1c",
     "ssh_username": "ubuntu",
     "name": "openvpn"
   },
