@@ -205,7 +205,7 @@ else
 	read -p "Port: " -e -i 1194 PORT
 '
     echo "I will use default port of 1194"	#pds
-    PORT=443
+    PORT=1194
 	echo ""
 :'
 	echo "What DNS do you want to use with the VPN?"
