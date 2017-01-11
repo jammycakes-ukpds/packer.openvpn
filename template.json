@@ -5,7 +5,7 @@
     "region": "eu-west-1",
     "source_ami": "ami-6f587e1c",
     "ssh_username": "ubuntu",
-    "name": "openvpn"
+    "name": "openvpn-ubuntu-16.04"
   },
   "builders": [
     {
@@ -16,10 +16,13 @@
         "source_ami": "{{user `source_ami`}}",
         "ssh_username": "{{user `ssh_username`}}",
         "instance_type": "t2.micro",
-        "ami_name": "{{user `name`}} {{timestamp}}",
+        "ami_name": "{{user `name`}}-{{timestamp}}",
         "ami_description": "{{user `name`}} AMI",
         "run_tags": { "ami-create": "{{user `name`}}" },
-        "tags": { "name": "{{user `name`}}", "created": "{{timestamp}}" },
+        "tags": {
+          "Name": "{{user `name`}}",
+          "Created": "{{timestamp}}"
+        },
         "associate_public_ip_address": true
     }
   ],
